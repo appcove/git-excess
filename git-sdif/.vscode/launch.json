@@ -1,0 +1,63 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'git-sdif'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=git-sdif",
+                    "--package=git-sdif"
+                ],
+                "filter": {
+                    "name": "git-sdif",
+                    "kind": "bin"
+                }
+            },
+            "args": ["origin/DaaS-TMT-0", "HEAD"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'git-sdif' with BAD BRANCHES",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=git-sdif",
+                    "--package=git-sdif"
+                ],
+                "filter": {
+                    "name": "git-sdif",
+                    "kind": "bin"
+                }
+            },
+            "args": ["master", "BADBRANCH"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'git-sdif'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=git-sdif",
+                    "--package=git-sdif"
+                ],
+                "filter": {
+                    "name": "git-sdif",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
