@@ -1,5 +1,6 @@
 use clap::Parser;
-use std::process::Command;
+use colored::Colorize;
+mod git_utils;
 
 /// Compare two git branches or commits to see what the symmetric difference is.
 #[derive(Parser, Debug)]
@@ -7,87 +8,146 @@ use std::process::Command;
 struct Args {
     /// The first branch to compare
     branch1: String,
-
     /// The second branch to compare
     #[clap(default_value = "HEAD")]
     branch2: String,
 }
 
-fn main(){
+fn cli_divider(message: &str) {
+    println!("");
+    println!("-------------------------------------------------------------------------------");
+    println!("{message}");
+    println!("");
+}
+
+fn main() {
     let args = Args::parse();
 
-    // Get the merge base between the two arguments 
-    let merge_base_vec = Command::new("git")
-        .arg("merge-base")
-        .arg(&args.branch1)
-        .arg(&args.branch2)
-        .output()
-        .expect("Failed to run git merge-base")
-        .stdout
-    ;
+    let merge_base = git_utils::get_merge_base(&args.branch1, &args.branch2);
 
-    // Decode the utf-8 string
-    let merge_base = String::from_utf8(merge_base_vec).unwrap();
-    let merge_base = merge_base.trim();
-
-    match merge_base {
-        "" => {
-            eprintln!("No merge base found between branches:");
-            eprintln!(" 1: {}", args.branch1);
-            eprintln!(" 2: {}", args.branch2);
+    match &merge_base {
+        Some(commit) => println!("Found {}: {}", "Merge base".cyan(), commit),
+        None => {
+            eprintln!(
+                "!! No merge base found between branches [{} <-> {}]\n",
+                args.branch1, args.branch2
+            );
             std::process::exit(1);
-        },
-        _ => {
-            println!("Found Merge base: {}", merge_base);
-        },
+        }
     }
 
-    println!("");
-    println!("");
-    println!("-------------------------------------------------------------------------------");
-    println!("Commits unique to `{}`", args.branch1);
-    println!("");
-    
-    // Show me commits on the first branch that are not on the second branch
-    let _cmd1 = Command::new("git")
-        .arg("--no-pager")
-        .arg("log")
-        .arg("--pretty=format:%Cgreen%h%Creset %Cred(%an)%Creset [%ad] %Cblue%s%Creset ")
-        .arg(&args.branch1)
-        .arg(format!("^{}", &args.branch2))
-        .status()
-    ;
+    cli_divider(&format!(
+        "Commits unique to {}",
+        args.branch1.to_uppercase().bold().yellow()
+    ));
 
-    println!("");
-    println!("");
-    println!("-------------------------------------------------------------------------------");
-    println!("Commits unique to `{}`", args.branch2);
-    println!("");
+    git_utils::show_uncommon_commit_from_other_branch(&args.branch1, &args.branch2);
 
+    cli_divider(&format!(
+        "Commits unique to {}",
+        args.branch2.to_uppercase().bold().yellow()
+    ));
 
-    // Show me commits on the second branch that are not on the first branch
-    let _cmd2 = Command::new("git")
-        .arg("--no-pager")
-        .arg("log")
-        .arg("--pretty=format:%Cgreen%h%Creset %Cred(%an)%Creset [%ad] %Cblue%s%Creset ")
-        .arg(&args.branch2)
-        .arg(format!("^{}", &args.branch1))
-        .status()
-    ;
+    git_utils::show_uncommon_commit_from_other_branch(&args.branch2, &args.branch1);
 
-    println!("");
-    println!("");
-    println!("-------------------------------------------------------------------------------");
-    println!("Common ancestor of `{}` and `{}`", args.branch1, args.branch2);
-    println!("");
+    cli_divider(&format!(
+        "Common anchestor of {} and {}",
+        &args.branch1, &args.branch2
+    ));
 
+    git_utils::show_common_commit(&merge_base.unwrap());
+}
 
-    // Show me the common commit
-    let _cmd3 = Command::new("git")
-        .arg("--no-pager")
-        .arg("log")
-        .arg("-1")
-        .arg(&merge_base)
-        .status()
-    ;
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        use crate::git_utils;
+        use std::{env, fs, path::Path, process::Command};
+
+        fn git_init() {
+            let git_init = Command::new("git").arg("init").status().unwrap();
+            assert!(git_init.success());
+        }
+        fn commit(message: &str) {
+            let git_commit = Command::new("git")
+                .args(["commit", "--allow-empty", "-m", message])
+                .status()
+                .unwrap();
+            assert!(git_commit.success());
+        }
+
+        fn create_branch_and_move_into_it(branch_name: &str) {
+            let new_branch = Command::new("git")
+                .args(["checkout", "-b", branch_name])
+                .status()
+                .unwrap();
+            assert!(new_branch.success());
+        }
+
+        fn change_branch(branch_name: &str) {
+            let branch = Command::new("git")
+                .args(["checkout", branch_name])
+                .status()
+                .unwrap();
+            assert!(branch.success());
+        }
+        fn show_uncommon_commit_from_other_branch(branch: &str, other_branch: &str) -> String {
+            let cmd = Command::new("git")
+                .arg("--no-pager")
+                .arg("log")
+                .arg("--pretty=format:%Cgreen%h%Creset %Cred(%an)%Creset [%ad] %Cblue%s%Creset ")
+                .arg(branch)
+                .arg(format!("^{}", other_branch))
+                .output()
+                .expect("Failed to retrieve unique commits")
+                .stdout;
+            String::from_utf8(cmd).unwrap()
+        }
+
+        pub fn show_common_commit(merge_base: &str) -> String {
+            let cmd = Command::new("git")
+                .arg("--no-pager")
+                .arg("log")
+                .arg("-1")
+                .arg(&merge_base)
+                .output()
+                .expect("Failed to get first common commit")
+                .stdout;
+            String::from_utf8(cmd).unwrap()
+        }
+
+        fs::remove_dir_all("temp_git_test");
+        // create folder and move into it
+        fs::create_dir_all("temp_git_test").unwrap();
+        assert!(env::set_current_dir(&Path::new("temp_git_test")).is_ok());
+
+        git_init();
+        commit("A");
+
+        // commit in dev
+        create_branch_and_move_into_it("dev");
+        commit("D");
+        commit("E");
+
+        // commit in master
+        change_branch("master");
+        commit("B");
+        commit("C");
+
+        let master = show_uncommon_commit_from_other_branch("master", "dev");
+        assert!(master.contains("] C") && master.contains("] B"));
+        assert_eq!(master.matches("\n").count(), 1);
+
+        let dev = show_uncommon_commit_from_other_branch("dev", "master");
+        assert!(dev.contains("] E") && dev.contains("] D"));
+        assert_eq!(master.matches("\n").count(), 1);
+
+        let common_key = git_utils::get_merge_base("dev", "master").unwrap();
+        let common_commmit = show_common_commit(&common_key);
+        assert!(common_commmit.contains(&common_key));
+
+        println!("{:?}", std::env::current_dir());
+        fs::remove_dir_all(std::env::current_dir().unwrap()).unwrap();
+    }
 }

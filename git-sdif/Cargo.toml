@@ -8,3 +8,4 @@ authors = ["AppCove, Inc."]
 
 [dependencies]
 clap = { version = "3.1.18", features = ["derive"] }
+colored = "2.0.0"
