@@ -117,7 +117,7 @@ mod tests {
             String::from_utf8(cmd).unwrap()
         }
 
-        fs::remove_dir_all("temp_git_test");
+        if let Err(err) = fs::remove_dir_all("temp_git_test") {};
         // create folder and move into it
         fs::create_dir_all("temp_git_test").unwrap();
         assert!(env::set_current_dir(&Path::new("temp_git_test")).is_ok());
