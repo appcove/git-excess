@@ -80,11 +80,13 @@ fn main() {
         std::process::exit(1);
     }
 
-    let dirty_files = files.par_iter().any(|file| is_file_dirty(file));
-    if dirty_files && !args.force {
-        println!(
-            "There is a dirty file (untracked or modified), can't perform replacement. Use --force to ovveride this feature"
-        )
+    if !args.force {
+        let dirty_files = files.par_iter().any(|file| is_file_dirty(file));
+        if dirty_files {
+            println!(
+                "There is a dirty file (untracked or modified), can't perform replacement. Use --force to ovveride this feature"
+            )
+        }
     } else {
         change_word_in_files(files, &args.search, &args.replace);
     }
