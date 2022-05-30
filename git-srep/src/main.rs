@@ -56,8 +56,7 @@ fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
 
 fn main() {
     let args = Args::parse();
-    println!("{:?}", args);
-    // let files = git_utils::get_files_with_word_in_it(&args.search);
+    // println!("{:?}", args);
 
     let files: Vec<String> = args
         .paths
@@ -74,9 +73,9 @@ fn main() {
         .flatten()
         .collect();
 
-    println!("{files:?}");
+    // println!("{files:?}");
     if files.is_empty() {
-        println!("There is not any file containing the given word or all files are not staged. Try running 'git add .' ");
+        println!("There is not any file containing the given word or all files are not staged. Try running 'git add -A' ");
         std::process::exit(1);
     }
 
@@ -86,6 +85,8 @@ fn main() {
             println!(
                 "There is a dirty file (untracked or modified), can't perform replacement. Use --force to ovveride this feature"
             )
+        } else {
+            change_word_in_files(files, &args.search, &args.replace);
         }
     } else {
         change_word_in_files(files, &args.search, &args.replace);
@@ -96,9 +97,9 @@ fn main() {
 mod tests {
     use std::{env, fs, path::Path, process::Command};
 
-    fn git_init(folder: &str) {
+    fn git_init() {
         let git_init = Command::new("git")
-            .args(["init", folder])
+            .arg("init")
             // .stdout(std::process::Stdio::null())
             // .stderr(std::process::Stdio::null())
             .status()
@@ -113,7 +114,7 @@ mod tests {
     fn create_folder(name: &str) {
         fs::create_dir_all(name).unwrap();
     }
-    fn _create_folder_and_move_into_it(name: &str) {
+    fn create_folder_and_move_into_it(name: &str) {
         fs::create_dir_all(name).unwrap();
         assert!(env::set_current_dir(&Path::new(name)).is_ok());
     }
@@ -138,23 +139,24 @@ mod tests {
                 path,
                 if force { "-f" } else { "" },
             ])
-            // .stdout(std::process::Stdio::null())
-            // .stderr(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .status()
             .unwrap();
     }
 
     fn create_dir_structure() {
         if let Err(_err) = fs::remove_dir_all(".cargo_test") {}
-        create_folder(".cargo_test");
-        create_folder(".cargo_test/subfolder");
-        write_file(".cargo_test/subfolder/b.txt", "test_a");
-        git_init(".cargo_test");
+        create_folder_and_move_into_it(".cargo_test");
+        create_folder("subfolder");
+        write_file("subfolder/b.txt", "test_a");
+        git_init();
         git_add();
-        write_file(".cargo_test/a.txt", "test_a");
+        write_file("a.txt", "test_a");
     }
 
     fn delete_dir_structure() {
+        assert!(env::set_current_dir(&Path::new("..")).is_ok());
         fs::remove_dir_all(".cargo_test").unwrap();
     }
 
@@ -162,15 +164,12 @@ mod tests {
     fn with_git() {
         create_dir_structure();
 
-        run_program("test_a", "new_test_a", ".cargo_test/subfolder", false);
-        assert_eq!(
-            read_file(".cargo_test/subfolder/b.txt"),
-            "new_test_a".to_string()
-        );
-        assert_eq!(read_file(".cargo_test/a.txt"), "test_a".to_string());
+        run_program("test_a", "new_test_a", "subfolder", false);
+        assert_eq!(read_file("subfolder/b.txt"), "new_test_a".to_string());
+        assert_eq!(read_file("a.txt"), "test_a".to_string());
         git_add();
-        run_program("test_a", "new_test_a", ".cargo_test", false);
-        assert_eq!(read_file(".cargo_test/a.txt"), "new_test_a".to_string());
+        run_program("test_a", "new_test_a", ".", false);
+        assert_eq!(read_file("a.txt"), "new_test_a".to_string());
 
         delete_dir_structure();
     }
