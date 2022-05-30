@@ -106,7 +106,7 @@ mod tests {
         assert!(git_init.success());
     }
     fn git_add() {
-        let git_init = Command::new("git").args(["add", "."]).status().unwrap();
+        let git_init = Command::new("git").args(["add", "-A"]).status().unwrap();
         assert!(git_init.success());
     }
 
@@ -138,39 +138,39 @@ mod tests {
                 path,
                 if force { "-f" } else { "" },
             ])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
+            // .stdout(std::process::Stdio::null())
+            // .stderr(std::process::Stdio::null())
             .status()
             .unwrap();
     }
 
     fn create_dir_structure() {
-        if let Err(_err) = fs::remove_dir_all("temp_git_test") {}
-        create_folder("temp_git_test");
-        create_folder("temp_git_test/subfolder");
-        write_file("temp_git_test/subfolder/b.txt", "test_a");
-        git_init("temp_git_test");
+        if let Err(_err) = fs::remove_dir_all(".cargo_test") {}
+        create_folder(".cargo_test");
+        create_folder(".cargo_test/subfolder");
+        write_file(".cargo_test/subfolder/b.txt", "test_a");
+        git_init(".cargo_test");
         git_add();
-        write_file("temp_git_test/a.txt", "test_a");
+        write_file(".cargo_test/a.txt", "test_a");
     }
 
     fn delete_dir_structure() {
-        fs::remove_dir_all("temp_git_test").unwrap();
+        fs::remove_dir_all(".cargo_test").unwrap();
     }
 
     #[test]
     fn with_git() {
         create_dir_structure();
 
-        run_program("test_a", "new_test_a", "temp_git_test/subfolder", false);
+        run_program("test_a", "new_test_a", ".cargo_test/subfolder", false);
         assert_eq!(
-            read_file("temp_git_test/subfolder/b.txt"),
+            read_file(".cargo_test/subfolder/b.txt"),
             "new_test_a".to_string()
         );
-        assert_eq!(read_file("temp_git_test/a.txt"), "test_a".to_string());
+        assert_eq!(read_file(".cargo_test/a.txt"), "test_a".to_string());
         git_add();
-        run_program("test_a", "new_test_a", "temp_git_test", false);
-        assert_eq!(read_file("temp_git_test/a.txt"), "new_test_a".to_string());
+        run_program("test_a", "new_test_a", ".cargo_test", false);
+        assert_eq!(read_file(".cargo_test/a.txt"), "new_test_a".to_string());
 
         delete_dir_structure();
     }

@@ -117,10 +117,10 @@ mod tests {
             String::from_utf8(cmd).unwrap()
         }
 
-        if let Err(_err) = fs::remove_dir_all("temp_git_test") {};
+        if let Err(_err) = fs::remove_dir_all(".cargo_test") {};
         // create folder and move into it
-        fs::create_dir_all("temp_git_test").unwrap();
-        assert!(env::set_current_dir(&Path::new("temp_git_test")).is_ok());
+        fs::create_dir_all(".cargo_test").unwrap();
+        assert!(env::set_current_dir(&Path::new(".cargo_test")).is_ok());
 
         git_init();
         commit("A");

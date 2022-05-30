@@ -12,12 +12,13 @@ Cargo.lock
 # Visual Studio Code
 .vscode/*
 
-
-
 # Various others
 __pycache__/
 *~
 *.log
 *.swp
 *.bak
+
+#folder where cargo test are run from
+**/.cargo_test
 
