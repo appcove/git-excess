@@ -73,7 +73,7 @@ pub fn get_files_with_word(search: &str, path: &str) -> Option<Vec<String>> {
     )
 }
 
-pub fn get_files_with_word_in_it_not_git(search: &str, path: &str) -> Option<Vec<String>> {
+pub fn get_files_with_word_using_grep(search: &str, path: &str) -> Option<Vec<String>> {
     let cmd = Command::new("grep")
         .args([search, path, "-lR"])
         .output()

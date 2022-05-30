@@ -73,7 +73,7 @@ fn main() {
         .par_iter()
         .map(|path| {
             if args.force {
-                git_utils::get_files_with_word_in_it_not_git(&args.search, path)
+                git_utils::get_files_with_word_using_grep(&args.search, path)
             } else {
                 git_utils::get_files_with_word(&args.search, path)
             }
