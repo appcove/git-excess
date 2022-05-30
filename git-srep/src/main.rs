@@ -39,28 +39,19 @@ fn is_file_dirty(file_path: &str) -> bool {
 }
 
 fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
-    // println!(
-    //     "Replacing {} -> {} in {}",
-    //     search,
-    //     replace,
-    //     file_path.green()
-    // );
-
-    let change_success = Command::new("sed")
-        .args(["-i", &format!("s/{search}/{replace}/g")])
+    let _ = Command::new("sed")
+        .args([
+            "-i",
+            &format!(
+                "s/{}/{}/g",
+                search.replace("/", r"\/"),
+                replace.replace("/", r"\/")
+            ),
+        ])
         .args(file_path)
         .status()
         .expect("Failed ")
         .success();
-
-    // if !change_success {
-    //     panic!(
-    //         "Error in replacing {} -> {} in {}",
-    //         search,
-    //         replace,
-    //         file_path.red()
-    //     )
-    // }
 }
 
 fn main() {
@@ -120,7 +111,7 @@ mod tests {
     fn create_folder(name: &str) {
         fs::create_dir_all(name).unwrap();
     }
-    fn create_folder_and_move_into_it(name: &str) {
+    fn _create_folder_and_move_into_it(name: &str) {
         fs::create_dir_all(name).unwrap();
         assert!(env::set_current_dir(&Path::new(name)).is_ok());
     }
