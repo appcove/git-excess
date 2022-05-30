@@ -38,27 +38,29 @@ fn is_file_dirty(file_path: &str) -> bool {
     modified || untracked
 }
 
-fn change_word_in_file(file_path: &str, search: &str, replace: &str) {
-    println!(
-        "Replacing {} -> {} in {}",
-        search,
-        replace,
-        file_path.green()
-    );
+fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
+    // println!(
+    //     "Replacing {} -> {} in {}",
+    //     search,
+    //     replace,
+    //     file_path.green()
+    // );
+
     let change_success = Command::new("sed")
-        .args(["-i", &format!("s/{search}/{replace}/g"), file_path])
+        .args(["-i", &format!("s/{search}/{replace}/g")])
+        .args(file_path)
         .status()
         .expect("Failed ")
         .success();
 
-    if !change_success {
-        panic!(
-            "Error in replacing {} -> {} in {}",
-            search,
-            replace,
-            file_path.red()
-        )
-    }
+    // if !change_success {
+    //     panic!(
+    //         "Error in replacing {} -> {} in {}",
+    //         search,
+    //         replace,
+    //         file_path.red()
+    //     )
+    // }
 }
 
 fn main() {
@@ -93,9 +95,7 @@ fn main() {
             "There is a dirty file (untracked or modified), can't perform replacement. Use --force to ovveride this feature"
         )
     } else {
-        files
-            .par_iter()
-            .for_each(|file| change_word_in_file(file, &args.search, &args.replace))
+        change_word_in_files(files, &args.search, &args.replace);
     }
 }
 
