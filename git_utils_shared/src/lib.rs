@@ -78,7 +78,54 @@ pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<Stri
 }
 
 pub mod file {
-    use std::process::Command;
+    #[derive(Hash, Eq, PartialEq, Clone, Debug)]
+    pub struct GitStatusFile {
+        name: String,
+        status: GitStatus,
+    }
+    #[derive(Hash, Eq, PartialEq, Clone, Debug)]
+    pub enum GitStatus {
+        Renamed,
+        Modified,
+        Deleted,
+        Added,
+        Untracked,
+    }
+    use std::{collections::HashMap, process::Command};
+
+    pub fn git_status() -> HashMap<GitStatus, GitStatusFile> {
+        let cmd = Command::new("git")
+            .args(["status", "--porcelain=v2", "-s"])
+            .output()
+            .expect("Failed ")
+            .stdout;
+        let stdout = String::from_utf8(cmd).unwrap();
+        let mut git_status_record = HashMap::new();
+        for line in stdout.split("\n") {
+            let line_split: Vec<&str> = line.trim().split(" ").filter(|c| !c.is_empty()).collect();
+
+            dbg!(&line_split);
+
+            use GitStatus::*;
+            let status = match line_split[0] {
+                "AD" | "D" => Deleted,
+                "AM" | "M" => Modified,
+                "AR" | "R" => Renamed,
+                "A" => Added,
+                "??" => Untracked,
+                err => panic!("{} is not an implemented git status", err),
+            };
+
+            git_status_record.insert(
+                status.clone(),
+                GitStatusFile {
+                    name: line_split[1].to_string(),
+                    status: status,
+                },
+            );
+        }
+        git_status_record
+    }
     pub fn files_are_modified(file_paths: &Vec<String>) -> bool {
         !Command::new("git")
             .args(["diff", "--quiet"])
