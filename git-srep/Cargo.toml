@@ -8,5 +8,3 @@ edition = "2021"
 [dependencies]
 clap = { version = "3.1.18", features = ["derive"] }
 git_utils_shared = { path = "../git_utils_shared"}
-rayon = "1.5.3"
-colored = "2.0.0"
