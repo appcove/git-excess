@@ -46,16 +46,20 @@ pub fn show_common_commit(merge_base: &str) {
         .expect("Failed to get first common commit");
 }
 
-pub fn get_files_with_word(search: &str, path: &str) -> Option<Vec<String>> {
+pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<String>> {
     let cmd = Command::new("git")
         .args([
             "--no-pager",
             "grep",
-            "--full-name",
+            "--files-with-matches",
             "--name-only",
-            search,
-            path,
+            "-E",
+            "-e",
+            // todo replace ' and " in search
+            &search,
+            "--",
         ])
+        .args(paths)
         .output()
         .expect("Failed")
         .stdout;
@@ -73,30 +77,12 @@ pub fn get_files_with_word(search: &str, path: &str) -> Option<Vec<String>> {
     )
 }
 
-pub fn get_files_with_word_using_grep(search: &str, path: &str) -> Option<Vec<String>> {
-    let cmd = Command::new("grep")
-        .args([search, path, "-lR"])
-        .output()
-        .expect("Failed")
-        .stdout;
-    let stdout = String::from_utf8(cmd).unwrap();
-    if stdout.is_empty() {
-        return None;
-    }
-    Some(
-        stdout
-            .trim()
-            .split("\n")
-            .map(|path| path.to_owned().replace("./", ""))
-            .collect::<Vec<String>>(),
-    )
-}
-
 pub mod file {
     use std::process::Command;
-    pub fn file_is_modified(file_path: &str) -> bool {
+    pub fn files_are_modified(file_paths: &Vec<String>) -> bool {
         !Command::new("git")
-            .args(["diff", "--quiet", &file_path])
+            .args(["diff", "--quiet"])
+            .args(file_paths)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
@@ -104,17 +90,14 @@ pub mod file {
             .success()
     }
 
-    pub fn file_is_tracked(file_path: &str) -> bool {
+    pub fn files_are_tracked(file_paths: &Vec<String>) -> bool {
         Command::new("git")
-            .args(["ls-files", "--error-unmatch", &file_path])
+            .args(["ls-files", "--error-unmatch"])
+            .args(file_paths)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
             .expect("Failed ")
             .success()
-    }
-
-    pub fn file_is_untracked(file_path: &str) -> bool {
-        !file_is_tracked(file_path)
     }
 }

@@ -1,7 +1,5 @@
 use clap::Parser;
-use colored::Colorize;
 use git_utils_shared as git_utils;
-use rayon::prelude::*;
 use std::process::Command;
 
 /// Replace given phrase inside files of the provided paths.
@@ -17,25 +15,12 @@ struct Args {
         long,
         short,
         takes_value = false,
-        help = "Substituted word in git dirty files"
+        help = "Replace words even if the matched file is modified (file not staged)"
     )]
     force: bool,
 
-    #[clap(required = true)]
+    #[clap(default_value = ".")]
     paths: Vec<String>,
-}
-
-fn is_file_dirty(file_path: &str) -> bool {
-    let modified = git_utils::file::file_is_modified(file_path);
-    let untracked = git_utils::file::file_is_untracked(file_path);
-    if modified {
-        println!("modified -> {}", file_path.red());
-    }
-    if untracked {
-        println!("Untracked -> {}", file_path.red())
-    }
-
-    modified || untracked
 }
 
 fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
@@ -56,40 +41,27 @@ fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
 
 fn main() {
     let args = Args::parse();
-    // println!("{:?}", args);
+    println!("{:?}", args);
 
-    let files: Vec<String> = args
-        .paths
-        .par_iter()
-        .map(|path| {
-            if args.force {
-                git_utils::get_files_with_word_using_grep(&args.search, path)
+    let files = git_utils::get_files_with_word(&args.search, &args.paths);
+
+    println!("{files:?}");
+
+    match files {
+        Some(files) => {
+            if git_utils::file::files_are_modified(&files) && !args.force {
+                println!(
+                    "There are not staged changes, in the matched files: {:?} ",
+                    files
+                );
             } else {
-                git_utils::get_files_with_word(&args.search, path)
+                change_word_in_files(files, &args.search, &args.replace);
             }
-        })
-        .filter(|file| file.is_some())
-        .map(|files| files.unwrap())
-        .flatten()
-        .collect();
-
-    // println!("{files:?}");
-    if files.is_empty() {
-        println!("There is not any file containing the given word or all files are not staged. Try running 'git add -A' ");
-        std::process::exit(1);
-    }
-
-    if !args.force {
-        let dirty_files = files.par_iter().any(|file| is_file_dirty(file));
-        if dirty_files {
-            println!(
-                "There is a dirty file (untracked or modified), can't perform replacement. Use --force to ovveride this feature"
-            )
-        } else {
-            change_word_in_files(files, &args.search, &args.replace);
         }
-    } else {
-        change_word_in_files(files, &args.search, &args.replace);
+        None => {
+            println!("There is not any file containing the given word.");
+            std::process::exit(1);
+        }
     }
 }
 
@@ -100,8 +72,8 @@ mod tests {
     fn git_init() {
         let git_init = Command::new("git")
             .arg("init")
-            // .stdout(std::process::Stdio::null())
-            // .stderr(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .status()
             .unwrap();
         assert!(git_init.success());
@@ -127,20 +99,24 @@ mod tests {
     }
 
     fn run_program(search: &str, replace: &str, path: &str, force: bool) {
+        let mut args = vec![
+            "run",
+            "--release",
+            "--bin",
+            "git-srep",
+            "--",
+            search,
+            replace,
+            path,
+        ];
+        if force {
+            args.push("-f");
+        }
+
         Command::new("cargo")
-            .args([
-                "run",
-                "--release",
-                "--bin",
-                "git-srep",
-                "--",
-                search,
-                replace,
-                path,
-                if force { "-f" } else { "" },
-            ])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
+            .args(args)
+            // .stdout(std::process::Stdio::null())
+            // .stderr(std::process::Stdio::null())
             .status()
             .unwrap();
     }
