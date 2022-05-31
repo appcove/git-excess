@@ -27,6 +27,7 @@ fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
     let _ = Command::new("sed")
         .args([
             "-i",
+            "-E",
             &format!(
                 "s/{}/{}/g",
                 search.replace("/", r"\/"),
@@ -115,8 +116,8 @@ mod tests {
 
         Command::new("cargo")
             .args(args)
-            // .stdout(std::process::Stdio::null())
-            // .stderr(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .status()
             .unwrap();
     }
