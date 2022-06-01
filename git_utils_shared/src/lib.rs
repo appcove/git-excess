@@ -47,12 +47,13 @@ pub fn show_common_commit(merge_base: &str) {
 }
 
 pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<String>> {
-    let cmd = Command::new("git")
+    let stdout_raw = Command::new("git")
         .args([
             "--no-pager",
             "grep",
             "--files-with-matches",
             "--name-only",
+            "-z",
             "-E",
             "-e",
             // todo replace ' and " in search
@@ -63,18 +64,22 @@ pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<Stri
         .output()
         .expect("Failed")
         .stdout;
-    let stdout = String::from_utf8(cmd).unwrap();
-    if stdout.is_empty() {
+    
+    let stdout_str = String::from_utf8(stdout_raw).unwrap();
+    
+    if stdout_str.is_empty() {
         return None;
     }
 
-    Some(
-        stdout
-            .trim()
-            .split("\n")
-            .map(|path| path.to_owned())
-            .collect::<Vec<String>>(),
-    )
+    // Because the output of the command is a string with a null character at the end, remove the last element
+    let files = stdout_str[..stdout_str.len() - 1]
+        .split("\0")
+        .map(|path| path.to_owned())
+        .collect::<Vec<String>>()
+    ;
+    
+    Some(files)
+    
 }
 
 pub mod file {
