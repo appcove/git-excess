@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "git-sdif",
+    "git-srep",
+    "git_utils_shared" # library with shared git commands code
+    ]
