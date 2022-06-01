@@ -1,7 +1,7 @@
 use clap::Parser;
 use colored::Colorize;
-mod git_utils;
 
+use git_utils_shared as git_utils;
 /// Compare two git branches or commits to see what the symmetric difference is.
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -117,10 +117,10 @@ mod tests {
             String::from_utf8(cmd).unwrap()
         }
 
-        if let Err(err) = fs::remove_dir_all("temp_git_test") {};
+        if let Err(_err) = fs::remove_dir_all(".cargo_test") {};
         // create folder and move into it
-        fs::create_dir_all("temp_git_test").unwrap();
-        assert!(env::set_current_dir(&Path::new("temp_git_test")).is_ok());
+        fs::create_dir_all(".cargo_test").unwrap();
+        assert!(env::set_current_dir(&Path::new(".cargo_test")).is_ok());
 
         git_init();
         commit("A");

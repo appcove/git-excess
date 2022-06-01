@@ -11,12 +11,6 @@ Cargo.lock
 
 # Visual Studio Code
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/*.code-snippets
-
 
 # Various others
 __pycache__/
@@ -24,4 +18,7 @@ __pycache__/
 *.log
 *.swp
 *.bak
+
+#folder where cargo test are run from
+**/.cargo_test
 
