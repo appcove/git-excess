@@ -19,6 +19,13 @@ struct Args {
     )]
     force: bool,
 
+    #[clap(
+        long,
+        takes_value = false,
+        help = "Don't execute replacement, instead print replacement command"
+    )]
+    dry_run: bool,
+
     #[clap(default_value = ".")]
     paths: Vec<String>,
 }
