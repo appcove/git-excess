@@ -1,4 +1,5 @@
 use clap::Parser;
+use colored::Colorize;
 use git_utils_shared as git_utils;
 use std::process::Command;
 
@@ -30,8 +31,8 @@ struct Args {
     paths: Vec<String>,
 }
 
-fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
-    let _ = Command::new("sed")
+fn change_word_in_files(file_path: &Vec<String>, search: &str, replace: &str) -> bool {
+    Command::new("sed")
         .args([
             "-i",
             "-E",
@@ -44,7 +45,7 @@ fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
         .args(file_path)
         .status()
         .expect("Failed ")
-        .success();
+        .success()
 }
 
 fn main() {
@@ -64,7 +65,15 @@ fn main() {
                     modified_files.unwrap().join("\n- ")
                 );
             } else {
-                change_word_in_files(files, &args.search, &args.replace);
+                if change_word_in_files(&files, &args.search, &args.replace) {
+                    println!(
+                        "{} \"{}\" -> \"{}\" in : \n- {}",
+                        "Succesfully changed".bold().green(),
+                        &args.search.cyan(),
+                        &args.replace.cyan(),
+                        files.join("\n- ")
+                    )
+                };
             }
         }
         None => {
