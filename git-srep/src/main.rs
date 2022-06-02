@@ -68,6 +68,13 @@ fn main() {
             } else {
                 if args.dry_run {
                     println!(
+                        "[{}] \"{}\" -> \"{}\" in : \n- {}",
+                        "dry-run".bold().bright_yellow(),
+                        &args.search.cyan(),
+                        &args.replace.cyan(),
+                        files.join("\n- ")
+                    );
+                    println!(
                         "The replacement command is: sed -i -E \"{}\" {}",
                         &format!(
                             "s/{}/{}/g",
