@@ -50,17 +50,21 @@ fn main() {
 
     match files {
         Some(files) => {
-            if git_utils::file::modified_files(&files).is_some() && !args.force {
+            let modified_files = git_utils::file::modified_files(&files);
+            if modified_files.is_some() && !args.force {
                 println!(
-                    "There are not staged changes, in the matched files: {:?} ",
-                    files
+                    "In the matched files, there are not staged changes,  {:?} ",
+                    modified_files.unwrap()
                 );
             } else {
                 change_word_in_files(files, &args.search, &args.replace);
             }
         }
         None => {
-            println!("There is not any file containing the given word.");
+            println!(
+                "There is not any file containing the word \"{}\".",
+                &args.search
+            );
             std::process::exit(1);
         }
     }
