@@ -47,6 +47,8 @@ pub fn show_common_commit(merge_base: &str) {
 }
 
 pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<String>> {
+    // assert!(search.contains("\""), "search word can't contain '\"' ");
+    // assert!(search.contains("'"), "search word can't contain "\'" ");
     let stdout_raw = Command::new("git")
         .args([
             "--no-pager",
