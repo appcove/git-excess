@@ -166,7 +166,7 @@ mod tests {
         if let Err(_err) = fs::remove_dir_all(".cargo_test") {}
         create_folder_and_move_into_it(".cargo_test");
         create_folder("subfolder");
-        write_file("subfolder/b.txt", "test_a");
+        write_file(r"subfolder/b\n.txt", "test_a");
         git_init();
         git_add();
         write_file("a.txt", "test_a");
@@ -182,7 +182,7 @@ mod tests {
         create_dir_structure();
 
         run_program("test_a", "new_test_a", "subfolder", false);
-        assert_eq!(read_file("subfolder/b.txt"), "new_test_a".to_string());
+        assert_eq!(read_file(r"subfolder/b\n.txt"), "new_test_a".to_string());
         assert_eq!(read_file("a.txt"), "test_a".to_string());
         git_add();
         run_program("test_a", "new_test_a", ".", false);
