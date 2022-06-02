@@ -87,7 +87,7 @@ fn main() {
                     );
                     for mut file in files.clone() {
                         if let Some(mod_files) = &modified_files {
-                            if mod_files.contains(&file) && args.force {
+                            if mod_files.contains(&file) {
                                 file.push_str(" (had unstaged content)");
                             }
                         }
