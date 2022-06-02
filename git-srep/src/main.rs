@@ -50,19 +50,20 @@ fn change_word_in_files(file_path: &Vec<String>, search: &str, replace: &str) ->
 
 fn main() {
     let args = Args::parse();
-    println!("{:?}", args);
 
     let files = git_utils::get_files_with_word(&args.search, &args.paths);
-
-    println!("{files:?}");
 
     match files {
         Some(files) => {
             let modified_files = git_utils::file::modified_files(&files);
             if modified_files.is_some() && !args.force {
                 println!(
-                    "In the matched files, there are not staged changes: \n- {} ",
+                    "In the matched files, there are unstaged changes: \n- {} ",
                     modified_files.unwrap().join("\n- ")
+                );
+                println!(
+                    "{}: stage all changes of use flag -f to force replacement.",
+                    "hint".bold()
                 );
             } else {
                 if change_word_in_files(&files, &args.search, &args.replace) {
@@ -79,7 +80,7 @@ fn main() {
         None => {
             println!(
                 "There is not any file containing the word \"{}\".",
-                &args.search
+                &args.search.cyan()
             );
             std::process::exit(1);
         }
