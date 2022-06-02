@@ -68,31 +68,31 @@ fn main() {
             } else {
                 if args.dry_run {
                     println!(
-                        "[{}] \"{}\" -> \"{}\" in : \n- {}",
-                        "dry-run".bold().bright_yellow(),
+                        "Found \"{}\" in : \n- {}",
                         &args.search.cyan(),
-                        &args.replace.cyan(),
                         files.join("\n- ")
                     );
                     println!(
-                        "The replacement command is: sed -i -E \"{}\" {}",
-                        &format!(
-                            "s/{}/{}/g",
-                            &args.search.replace("/", r"\/"),
-                            &args.replace.replace("/", r"\/")
-                        ),
-                        files.join(" ")
+                        "Did not perform replacement due to {}",
+                        "--dry-run".bold().bright_yellow()
                     );
                     std::process::exit(1);
                 }
                 if change_word_in_files(&files, &args.search, &args.replace) {
                     println!(
-                        "{} \"{}\" -> \"{}\" in : \n- {}",
+                        "{} \"{}\" -> \"{}\" in :",
                         "Succesfully changed".bold().green(),
                         &args.search.cyan(),
                         &args.replace.cyan(),
-                        files.join("\n- ")
-                    )
+                    );
+                    for mut file in files.clone() {
+                        if let Some(mod_files) = &modified_files {
+                            if mod_files.contains(&file) && args.force {
+                                file.push_str(" (had unstaged content)");
+                            }
+                        }
+                        println!("- {}", file);
+                    }
                 };
             }
         }
