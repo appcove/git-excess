@@ -53,8 +53,8 @@ fn main() {
             let modified_files = git_utils::file::modified_files(&files);
             if modified_files.is_some() && !args.force {
                 println!(
-                    "In the matched files, there are not staged changes,  {:?} ",
-                    modified_files.unwrap()
+                    "In the matched files, there are not staged changes: \n- {} ",
+                    modified_files.unwrap().join("\n- ")
                 );
             } else {
                 change_word_in_files(files, &args.search, &args.replace);
