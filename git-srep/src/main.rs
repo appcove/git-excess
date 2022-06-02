@@ -50,7 +50,7 @@ fn main() {
 
     match files {
         Some(files) => {
-            if git_utils::file::files_are_modified(&files) && !args.force {
+            if git_utils::file::modified_files(&files).is_some() && !args.force {
                 println!(
                     "There are not staged changes, in the matched files: {:?} ",
                     files
