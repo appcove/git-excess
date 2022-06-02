@@ -66,6 +66,18 @@ fn main() {
                     "hint".bold()
                 );
             } else {
+                if args.dry_run {
+                    println!(
+                        "The replacement command is: sed -i -E \"{}\" {}",
+                        &format!(
+                            "s/{}/{}/g",
+                            &args.search.replace("/", r"\/"),
+                            &args.replace.replace("/", r"\/")
+                        ),
+                        files.join(" ")
+                    );
+                    std::process::exit(1);
+                }
                 if change_word_in_files(&files, &args.search, &args.replace) {
                     println!(
                         "{} \"{}\" -> \"{}\" in : \n- {}",
