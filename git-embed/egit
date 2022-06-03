@@ -1,0 +1,54 @@
+#!/usr/bin/python3
+# vim:fileencoding=utf-8:ts=2:sw=2:expandtab
+
+
+'''
+'''
+
+import time
+import os
+import os.path
+import sys
+import argparse
+import subprocess
+import shutil
+
+try:
+  GIT_DIR = os.path.abspath(subprocess.check_output(('git', 'rev-parse', '--show-toplevel'))[0:-1].decode('utf-8'))
+except subprocess.CalledProcessError:
+  sys.exit(1)
+
+GIT_EMBED_FILE = os.path.join(GIT_DIR, '.gitembed')
+
+CURRENT_PATH = os.path.abspath('.')
+REPO_BASE = None
+EGIT_PATH = None
+
+path = CURRENT_PATH
+while len(path) > len(GIT_DIR):
+  if os.path.isdir(os.path.join(path, '.egit')):
+    REPO_BASE = path
+    EGIT_PATH = os.path.join(path, '.egit')
+    break
+
+  path = os.path.dirname(path)
+
+if not REPO_BASE:
+  print('No embedded repository found in this path "{0}".'.format(CURRENT_PATH))
+  sys.exit(1)
+
+
+relative_subpath = REPO_BASE[len(GIT_DIR)+1:]
+
+os.environ['GIT_DIR'] = EGIT_PATH
+os.environ['GIT_WORK_TREE'] = REPO_BASE
+
+returncode = subprocess.call(['git'] + sys.argv[1:])
+
+head = subprocess.check_output(('git', 'rev-parse', 'HEAD')).strip()
+  
+if {'reset', 'checkout', 'commit', 'merge', 'rebase', 'ff', 'cherry-pick'} & set(sys.argv[1:]):
+  subprocess.check_call(('git', 'config', '--file', GIT_EMBED_FILE, 'embed.{0}.head'.format(relative_subpath), head))
+
+sys.exit(returncode)
+

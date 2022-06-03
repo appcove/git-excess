@@ -1,0 +1,397 @@
+#!/usr/bin/env python3
+# vim:fileencoding=utf-8:ts=2:sw=2:sts=2:expandtab
+
+
+'''
+`git embed` and `egit` are git extensions that allow submodule like behavior without the 
+hassles of working with submodules.  The parent repository will actually commit each
+of the embedded repository files, but you also have the tools (`egit`) to work with 
+the embedded repository as if it were it's own submodule.
+
+Therefore you can include all of the submodule code in the parent repo for history,
+git grep, etc.. but still have a seamless way to share that code with the upstream
+submodule repository when it is stable.
+
+--
+REQUIREMENTS:
+
+1. the parent repository MUST have a .gitignore file with at an entry of ".egit"
+
+2. the parent repository WILL contain a .gitembed file which stores the location of the remotes
+   this is created automatically with `git embed add`
+
+--
+To setup a git embed or look at their statuses, we need a command for that
+
+>>> cd /path/to/PROJECT
+
+git embed add <git-url> <project path>
+git embed init
+git embed fetch
+git embed status
+
+
+>>> cd /path/to/PROJECT/EmbeddedSubProject
+>>> egit (git commands)
+
+This will set the environment variables and call git with git thinking it is in it's own EmbeddedSubProject repo.
+For it to work, git must be able to identify that it is in a git repository, and you are in a subdirectory
+of one of the embedded repositories.
+
+Beyond this, egit works exactly the same as git.
+
+'''
+
+import time
+import os.path
+import sys
+import argparse
+import subprocess
+import shutil
+import datetime
+
+from collections import defaultdict, OrderedDict
+
+GIT_DIR = os.path.abspath(subprocess.check_output(('git', 'rev-parse', '--show-toplevel'))[0:-1].decode('utf-8'))
+GIT_TMP = os.path.join(GIT_DIR, 'egit-tmp')
+GIT_EMBED_FILE = os.path.join(GIT_DIR, '.gitembed')
+PROJECT_DIRNAME = os.path.basename(GIT_DIR)
+GIT_COMMIT = subprocess.check_output(('git', 'rev-parse', 'HEAD')).strip().decode('utf-8')
+IS_GIT_EMBED_MODIFIED = '.gitembed' in subprocess.check_output(('git', 'status', '--porcelain')).decode('utf-8')
+
+os.chdir(GIT_DIR)
+  
+###################################################################################################
+def GET_EMBEDS():
+  Embeds = defaultdict(dict)
+
+  lines = subprocess.check_output(('git', 'config', '--file', GIT_EMBED_FILE, '--list')).decode('utf-8')
+
+  for line in lines.split('\n'):
+    line = line.strip()
+    key, sep, value = line.partition('=')
+    parts = key.split('.')
+
+    if parts[0] == 'embed':
+      Embeds[parts[1]]['ID'] = key
+      Embeds[parts[1]][parts[2]] = value
+    
+
+  RVAL = []
+
+  # Sort and convert to a list
+  for Embed in (Embeds[key] for key in sorted(Embeds)):
+
+    if 'url' not in Embed:
+      raise ValueError('Embed must have "url" attribute: {0}'.format(Embed))
+
+    if 'path' not in Embed:
+      raise ValueError('Embed must have "path" attribute: {0}'.format(Embed))
+    
+    if 'head' not in Embed:
+      raise ValueError('Embed must have "head" attribute: {0}'.format(Embed))
+
+    Embed['.egit'] = os.path.join(GIT_DIR, Embed['path'], '.egit')
+    Embed['repo_path'] = os.path.join(GIT_DIR, Embed['path'])
+
+    RVAL.append(Embed)
+
+  return RVAL
+
+
+###################################################################################################
+
+# Process sub command
+
+subcommand = None
+subcommand_position = 0
+for arg in sys.argv[1:]:
+  subcommand_position += 1
+  if arg.startswith('-'):
+    continue
+  elif arg in ('add', 'remove', 'init', 'fetch', 'update', 'status', 'tag'):
+    subcommand = arg
+    break
+  else:
+    print('invalid subcommand: {0}'.format(arg))
+    sys.exit(1)
+
+  
+  
+parser = argparse.ArgumentParser(description="git embed program for working with truly embedded git submodules")
+subcommand_args = sys.argv[subcommand_position+1:]
+
+
+###################################################################################################
+if subcommand == 'add':
+
+
+  # Parse the config file path if provided
+  parser.add_argument(
+    "url", 
+    nargs = 1,
+    help = "URL to git repository."
+    )
+  
+  # Parse the config file path if provided
+  parser.add_argument(
+    "path", 
+    nargs = 1,
+    help = "Path to where code should be placed."
+    )
+
+
+  # Parse arguments
+  args = parser.parse_args(subcommand_args)
+
+  # we need to make sure that path does not already exist, and that it is within the GIT_DIR
+
+  subpath = os.path.abspath(args.path[0])
+  url = args.url[0]
+
+  if not subpath.startswith(GIT_DIR) or subpath == GIT_DIR:
+    print('Path "{0}" must be contained within parent repository diectory "{1}".'.format(subpath, GIT_DIR))
+    sys.exit(2)
+
+  if os.path.exists(subpath):
+    print('Path "{0}" already exists.  Cannot add embedded repository there.'.format(subpath))
+    sys.exit(2)
+  
+  # strip the GIT_DIR off of the beginning of the subpath to get the relative_subpath
+  relative_subpath = subpath[len(GIT_DIR)+1:]
+  
+  # Build the .gitembed entry  
+  subprocess.check_call(('git', 'config', '--file', GIT_EMBED_FILE, 'embed.{0}.url'.format(relative_subpath), url))
+  subprocess.check_call(('git', 'config', '--file', GIT_EMBED_FILE, 'embed.{0}.path'.format(relative_subpath), relative_subpath))
+
+  # Clone the repo
+  subprocess.check_call(('git', 'clone', url, subpath))
+  
+  # move the .git to .egit
+  subprocess.check_call(('mv', os.path.join(subpath, '.git'), os.path.join(subpath, '.egit')))
+  
+  # Get HEAD
+  head = subprocess.check_output(('git', '--git-dir', os.path.join(subpath, '.egit'), 'rev-parse', 'HEAD')).strip()
+  
+  # Save HEAD to config file
+  subprocess.check_call(('git', 'config', '--file', GIT_EMBED_FILE, 'embed.{0}.head'.format(relative_subpath), head))
+  
+
+###################################################################################################
+elif subcommand == 'remove':
+
+  # Parse the config file path if provided
+  parser.add_argument(
+    "path", 
+    nargs = 1,
+    help = "Path to where to remove embedded repository from."
+    )
+
+  # Parse the config file path if provided
+  parser.add_argument(
+    "--remove-all-files", 
+    dest = "remove_all_files", 
+    default = False,
+    required = False,
+    action='store_true',
+    help = "ALSO remove the files in that embedded repository, not just the embedded repository entry."
+    )
+
+  # Parse arguments
+  args = parser.parse_args(subcommand_args)
+  subpath = os.path.abspath(args.path[0])
+  subpath_egit = os.path.join(subpath, '.egit')
+  
+  # Ensure it is within the repo
+  if not subpath.startswith(GIT_DIR) or subpath == GIT_DIR:
+    print('Path "{0}" must be contained within parent repository diectory "{1}".'.format(subpath, GIT_DIR))
+    sys.exit(2)
+  
+  relative_subpath = subpath[len(GIT_DIR)+1:]
+
+   # Remove .egit if it exits
+  if os.path.exists(subpath_egit):
+    shutil.rmtree(subpath_egit)
+   
+  # Remove .egit if it exits
+  if args.remove_all_files and os.path.exists(subpath):
+    shutil.rmtree(subpath)
+  
+  # Remove the .gitembed entry  
+  subprocess.call(('git', 'config', '--file', GIT_EMBED_FILE, '--unset', 'embed.{0}.url'.format(relative_subpath)))
+  subprocess.call(('git', 'config', '--file', GIT_EMBED_FILE, '--unset', 'embed.{0}.path'.format(relative_subpath)))
+  subprocess.call(('git', 'config', '--file', GIT_EMBED_FILE, '--unset', 'embed.{0}.head'.format(relative_subpath)))
+
+  
+
+###################################################################################################
+elif subcommand == 'init':
+  
+  # Parse arguments
+  args = parser.parse_args(subcommand_args)
+
+  Embeds = GET_EMBEDS()
+  
+
+  cwd = os.getcwd()
+ 
+  for Embed in Embeds:
+    if os.path.exists(Embed['.egit']):
+      print('SKIPPING "{0}" because it is already initialized.'.format(Embed['path']))
+      print()
+
+    else:
+      
+      print('Setting up "{0}":'.format(Embed['path']))
+      print()
+
+      # Make a temp dir:
+      subprocess.call(('rm', '-rf', GIT_TMP)) 
+      try:
+        repo_path = os.path.join(GIT_TMP, 'repo')
+        subprocess.check_call(('mkdir', GIT_TMP))
+        subprocess.check_call(('git', 'clone', Embed['url'], repo_path))
+        subprocess.check_call(('mv', os.path.join(repo_path, '.git'), Embed['.egit'])) 
+        os.chdir(Embed['repo_path'])
+        subprocess.call(('egit', 'reset', '--mixed', Embed['head']))
+        subprocess.call(('egit', 'checkout', '-b', PROJECT_DIRNAME))
+        subprocess.call(('egit', 'branch', '-D', 'master'))
+
+      finally:
+        subprocess.call(('rm', '-rf', GIT_TMP)) 
+
+      print()
+
+
+
+###################################################################################################
+elif subcommand == 'fetch':
+  
+  # Parse arguments
+  args = parser.parse_args(sys.argv[subcommand_position+1:])
+
+###################################################################################################
+elif subcommand == 'status':
+  
+  # Parse arguments
+  args = parser.parse_args(subcommand_args)
+
+  Embeds = GET_EMBEDS()
+  
+
+  cwd = os.getcwd()
+ 
+  for Embed in Embeds:
+    if os.path.exists(Embed['.egit']):
+      os.chdir(Embed['repo_path'])
+      try:
+        print('-' * 80)
+        print('Status for "{0}":'.format(Embed['path']))
+        print()
+        subprocess.call(('egit', 'rev-parse', 'HEAD'))
+        subprocess.call(('egit', 'status'))
+        print()
+      finally:
+        os.chdir(cwd)
+    else:
+      print('SKIPPING "{0}" because it is not initialized.'.format(Embed['path']))
+      print()
+
+
+###################################################################################################
+elif subcommand == 'tag':
+  
+  # Parse arguments
+  args = parser.parse_args(subcommand_args)
+
+  Embeds = GET_EMBEDS()
+  
+  if IS_GIT_EMBED_MODIFIED:
+    subprocess.call(('git', 'status'))
+    raise Exception('.gitembed is dirty.  Please commit this first.')
+
+  dt = subprocess.check_output(('git', 'log', '-1', '--date=iso-strict', '--format=%cd', 'HEAD')).decode('utf-8').strip()
+  dt = datetime.datetime.fromisoformat(dt).strftime('%Y%m%d%H%M%S')
+
+  cwd = os.getcwd()
+ 
+  for Embed in Embeds:
+    if os.path.exists(Embed['.egit']):
+      os.chdir(Embed['repo_path'])
+      tag_name = f'{PROJECT_DIRNAME}.{dt}.{GIT_COMMIT}'
+      try:
+        print('-' * 80)
+        print(f'Tagging {Embed["path"]} as {tag_name}')
+        print()
+        subprocess.call(('egit', 'tag', tag_name))
+        subprocess.call(('egit', 'push', '--tags'))
+        print()
+      finally:
+        os.chdir(cwd)
+    else:
+      print('SKIPPING "{0}" because it is not initialized.'.format(Embed['path']))
+      print()
+
+
+###################################################################################################
+elif subcommand == 'update':
+  
+  # Parse arguments
+  args = parser.parse_args(subcommand_args)
+
+  Embeds = GET_EMBEDS()
+  
+
+  cwd = os.getcwd()
+ 
+  for Embed in Embeds:
+    if os.path.exists(Embed['.egit']):
+      os.chdir(Embed['repo_path'])
+      try:
+        print('-' * 80)
+        print('Updating "{}" to {}:'.format(Embed['path'], Embed['head']))
+        print()
+        subprocess.call(('egit', 'fetch', '--tags'))
+        subprocess.call(('egit', 'reset', '--mixed', Embed['head']))
+        subprocess.call(('egit', 'status'))
+        print()
+      finally:
+        os.chdir(cwd)
+    else:
+      print('SKIPPING "{0}" because it is not initialized.'.format(Embed['path']))
+      print()
+
+
+
+  # Parse arguments
+
+###################################################################################################
+elif subcommand in (None, 'list'):
+  
+  # Parse arguments
+  args = parser.parse_args(subcommand_args)
+
+  Embeds = GET_EMBEDS()
+  
+
+  cwd = os.getcwd()
+ 
+  for Embed in Embeds:
+    print('{:40}  {}   {}'.format(Embed['path'], Embed['head'], 'Initialized' if os.path.exists(Embed['.egit']) else '*'))
+
+
+
+
+
+  # Parse arguments
+
+###################################################################################################
+else: 
+  raise ValueError('invalid subcomand: {0}'.format(subcommand))
+
+
+###################################################################################################
+
+
+
+
