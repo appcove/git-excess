@@ -47,6 +47,8 @@ pub fn show_common_commit(merge_base: &str) {
 }
 
 pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<String>> {
+    // assert!(search.contains("\""), "search word can't contain '\"' ");
+    // assert!(search.contains("'"), "search word can't contain "\'" ");
     let stdout_raw = Command::new("git")
         .args([
             "--no-pager",
@@ -64,9 +66,9 @@ pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<Stri
         .output()
         .expect("Failed")
         .stdout;
-    
+
     let stdout_str = String::from_utf8(stdout_raw).unwrap();
-    
+
     if stdout_str.is_empty() {
         return None;
     }
@@ -75,11 +77,9 @@ pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<Stri
     let files = stdout_str[..stdout_str.len() - 1]
         .split("\0")
         .map(|path| path.to_owned())
-        .collect::<Vec<String>>()
-    ;
-    
+        .collect::<Vec<String>>();
+
     Some(files)
-    
 }
 
 pub mod file {
@@ -131,15 +131,23 @@ pub mod file {
         }
         git_status_record
     }
-    pub fn files_are_modified(file_paths: &Vec<String>) -> bool {
-        !Command::new("git")
-            .args(["diff", "--quiet"])
+    pub fn modified_files(file_paths: &Vec<String>) -> Option<Vec<String>> {
+        let stdout_raw = Command::new("git")
+            .args(["--no-pager", "diff", "--name-only", "-z"])
             .args(file_paths)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
+            .output()
             .expect("Failed ")
-            .success()
+            .stdout;
+        let stdout_str = String::from_utf8(stdout_raw).unwrap();
+
+        if stdout_str.is_empty() {
+            return None;
+        }
+        let files = stdout_str[..stdout_str.len() - 1]
+            .split("\0")
+            .map(|path| path.to_owned())
+            .collect::<Vec<String>>();
+        Some(files)
     }
 
     pub fn files_are_tracked(file_paths: &Vec<String>) -> bool {
