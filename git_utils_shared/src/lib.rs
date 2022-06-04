@@ -82,6 +82,44 @@ pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<Stri
     Some(files)
 }
 
+pub fn clone(git_url: &str, path: &str) {
+    let _ = Command::new("git")
+        .args(["clone", git_url, path])
+        .status()
+        .expect("Failed")
+        .success();
+}
+
+pub mod embed {
+    use std::process::Command;
+    pub fn add_fild_to_embed_file(project: &str, fild: &str, content: &str) {
+        let _ = Command::new("git")
+            .args([
+                "config",
+                "--file",
+                ".gitembed",
+                &format!("embed.{}.{}", project, fild),
+                content,
+            ])
+            .status()
+            .expect("Failed")
+            .success();
+    }
+
+    pub fn get_head_of_embed_project(embed_project_path: &str) -> String {
+        let stdout_raw = Command::new("git")
+            .args([
+                "--git-dir",
+                &format!("{}/.egit", embed_project_path),
+                "rev-parse",
+                "HEAD",
+            ])
+            .output()
+            .expect("Failed")
+            .stdout;
+        String::from_utf8(stdout_raw).unwrap().trim().to_string()
+    }
+}
 pub mod file {
     #[derive(Hash, Eq, PartialEq, Clone, Debug)]
     pub struct GitStatusFile {
