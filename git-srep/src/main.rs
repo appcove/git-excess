@@ -1,4 +1,5 @@
 use clap::Parser;
+use colored::Colorize;
 use git_utils_shared as git_utils;
 use std::process::Command;
 
@@ -19,12 +20,19 @@ struct Args {
     )]
     force: bool,
 
+    #[clap(
+        long,
+        takes_value = false,
+        help = "Don't execute replacement, instead print replacement command"
+    )]
+    dry_run: bool,
+
     #[clap(default_value = ".")]
     paths: Vec<String>,
 }
 
-fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
-    let _ = Command::new("sed")
+fn change_word_in_files(file_path: &Vec<String>, search: &str, replace: &str) -> bool {
+    Command::new("sed")
         .args([
             "-i",
             "-E",
@@ -37,30 +45,62 @@ fn change_word_in_files(file_path: Vec<String>, search: &str, replace: &str) {
         .args(file_path)
         .status()
         .expect("Failed ")
-        .success();
+        .success()
 }
 
 fn main() {
     let args = Args::parse();
-    println!("{:?}", args);
 
     let files = git_utils::get_files_with_word(&args.search, &args.paths);
 
-    println!("{files:?}");
-
     match files {
         Some(files) => {
-            if git_utils::file::files_are_modified(&files) && !args.force {
+            let modified_files = git_utils::file::modified_files(&files);
+            if modified_files.is_some() && !args.force {
                 println!(
-                    "There are not staged changes, in the matched files: {:?} ",
-                    files
+                    "In the matched files, there are unstaged changes: \n- {} ",
+                    modified_files.unwrap().join("\n- ")
+                );
+                println!(
+                    "{}: stage all changes of use flag -f to force replacement.",
+                    "hint".bold()
                 );
             } else {
-                change_word_in_files(files, &args.search, &args.replace);
+                if args.dry_run {
+                    println!(
+                        "Found \"{}\" in : \n- {}",
+                        &args.search.cyan(),
+                        files.join("\n- ")
+                    );
+                    println!(
+                        "Did not perform replacement due to {}",
+                        "--dry-run".bold().bright_yellow()
+                    );
+                    std::process::exit(1);
+                }
+                if change_word_in_files(&files, &args.search, &args.replace) {
+                    println!(
+                        "{} \"{}\" -> \"{}\" in :",
+                        "Succesfully changed".bold().green(),
+                        &args.search.cyan(),
+                        &args.replace.cyan(),
+                    );
+                    for mut file in files.clone() {
+                        if let Some(mod_files) = &modified_files {
+                            if mod_files.contains(&file) {
+                                file.push_str(" (had unstaged content)");
+                            }
+                        }
+                        println!("- {}", file);
+                    }
+                };
             }
         }
         None => {
-            println!("There is not any file containing the given word.");
+            println!(
+                "There is not any file containing the word \"{}\".",
+                &args.search.cyan()
+            );
             std::process::exit(1);
         }
     }
@@ -126,7 +166,7 @@ mod tests {
         if let Err(_err) = fs::remove_dir_all(".cargo_test") {}
         create_folder_and_move_into_it(".cargo_test");
         create_folder("subfolder");
-        write_file("subfolder/b.txt", "test_a");
+        write_file(r"subfolder/b\n.txt", "test_a");
         git_init();
         git_add();
         write_file("a.txt", "test_a");
@@ -142,7 +182,7 @@ mod tests {
         create_dir_structure();
 
         run_program("test_a", "new_test_a", "subfolder", false);
-        assert_eq!(read_file("subfolder/b.txt"), "new_test_a".to_string());
+        assert_eq!(read_file(r"subfolder/b\n.txt"), "new_test_a".to_string());
         assert_eq!(read_file("a.txt"), "test_a".to_string());
         git_add();
         run_program("test_a", "new_test_a", ".", false);
