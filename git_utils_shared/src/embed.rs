@@ -66,6 +66,31 @@ pub struct EmbedEnty {
     pub path: String,
     pub head: String,
 }
+
+impl tabled::Tabled for EmbedEnty {
+    const LENGTH: usize = 4;
+    fn fields(&self) -> Vec<String> {
+        let is_initliased = if std::path::Path::new(&format!("{}/.egit", self.path)).is_dir() {
+            "yes"
+        } else {
+            "no"
+        };
+        vec![
+            self.name.clone(),
+            is_initliased.to_string(),
+            self.path.clone(),
+            self.head.clone(),
+        ]
+    }
+    fn headers() -> Vec<String> {
+        vec![
+            "Project".into(),
+            "is_initliased".into(),
+            "path".into(),
+            "head".into(),
+        ]
+    }
+}
 pub fn get_embeds() -> Vec<EmbedEnty> {
     let stdout_raw = Command::new("git")
         .args(["config", "--file", ".gitembed", "--list"])

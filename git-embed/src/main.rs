@@ -1,6 +1,7 @@
 use clap::Parser;
 use colored::Colorize;
 use git_utils_shared as git_utils;
+use tabled::{Style, Table};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None, propagate_version = true)]
@@ -155,18 +156,6 @@ fn update() {
 }
 
 fn list_embed() {
-    for entry in &git_utils::embed::get_embeds() {
-        let is_initliased = if std::path::Path::new(&format!("{}/.egit", entry.path)).is_dir() {
-            "yes"
-        } else {
-            "no"
-        };
-        println!(
-            "{}\t {}\t {}\t {}\t",
-            entry.name.cyan(),
-            is_initliased,
-            entry.path,
-            entry.head,
-        );
-    }
+    let table = Table::new(&git_utils::embed::get_embeds()).with(Style::modern());
+    println!("{table}");
 }
