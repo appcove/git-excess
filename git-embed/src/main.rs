@@ -16,6 +16,8 @@ enum Action {
     Remove(Remove),
     Fetch,
     Status,
+    Update,
+    List,
 }
 
 #[derive(clap::Args, Debug)]
@@ -51,6 +53,8 @@ fn main() {
         Init => init(),
         Fetch => fetch(),
         Status => status(),
+        Update => update(),
+        List => list_embed(),
     }
 }
 
@@ -102,7 +106,7 @@ fn init() {
         .iter()
         .filter(|entry| !std::path::Path::new(&format!("{}/.egit", entry.path)).is_dir())
     {
-        println!("Setting up: {}", entry.name.green());
+        println!("Setting up: {}", entry.name.cyan());
         let _ = std::fs::remove_dir_all("egit-tmp");
         let _ = std::fs::create_dir_all("egit-tmp");
         git_utils::clone(&entry.git_url, "egit-tmp/repo");
@@ -110,6 +114,9 @@ fn init() {
         assert!(std::env::set_current_dir("egit-tmp/repo").is_ok());
 
         // todo: implement egit
+        // subprocess.call(('egit', 'reset', '--mixed', Embed['head']))
+        // subprocess.call(('egit', 'checkout', '-b', PROJECT_DIRNAME))
+        // subprocess.call(('egit', 'branch', '-D', 'master'))
 
         std::fs::remove_dir_all(std::env::current_dir().unwrap().parent().unwrap()).unwrap();
     }
@@ -117,4 +124,53 @@ fn init() {
 
 fn fetch() {}
 
-fn status() {}
+fn status() {
+    let cwd = std::env::current_dir().unwrap();
+    for entry in git_utils::embed::get_embeds()
+        .iter()
+        .filter(|entry| std::path::Path::new(&format!("{}/.egit", entry.path)).is_dir())
+    {
+        assert!(std::env::set_current_dir(&entry.path).is_ok());
+        println!("Status of: {}", entry.name.cyan());
+        println!("{:?}", std::env::current_dir().unwrap());
+
+        // todo: implement egit
+        // subprocess.call(('egit', 'rev-parse', 'HEAD'))
+        // subprocess.call(('egit', 'status'))
+        assert!(std::env::set_current_dir(&cwd).is_ok());
+    }
+}
+fn update() {
+    let cwd = std::env::current_dir().unwrap();
+    for entry in git_utils::embed::get_embeds()
+        .iter()
+        .filter(|entry| std::path::Path::new(&format!("{}/.egit", entry.path)).is_dir())
+    {
+        assert!(std::env::set_current_dir(&entry.path).is_ok());
+        println!("Updating {} to {}", entry.name.cyan(), entry.head.yellow());
+        println!("{:?}", std::env::current_dir().unwrap());
+
+        // todo: implement egit
+        // subprocess.call(('egit', 'fetch', '--tags'))
+        // subprocess.call(('egit', 'reset', '--mixed', Embed['head']))
+        // subprocess.call(('egit', 'status'))
+        assert!(std::env::set_current_dir(&cwd).is_ok());
+    }
+}
+
+fn list_embed() {
+    for entry in &git_utils::embed::get_embeds() {
+        let is_initliased = if std::path::Path::new(&format!("{}/.egit", entry.path)).is_dir() {
+            "yes"
+        } else {
+            "no"
+        };
+        println!(
+            "{}\t {}\t {}\t {}\t",
+            entry.name.cyan(),
+            is_initliased,
+            entry.path,
+            entry.head,
+        );
+    }
+}
