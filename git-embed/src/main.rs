@@ -1,7 +1,6 @@
 use clap::Parser;
 use colored::Colorize;
 use git_utils_shared as git_utils;
-use std::process::Command;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None, propagate_version = true)]
@@ -12,8 +11,9 @@ struct Args {
 
 #[derive(clap::Subcommand, Debug)]
 enum Action {
-    Add(Add),
     Init,
+    Add(Add),
+    Remove(Remove),
     Fetch,
     Status,
 }
@@ -30,11 +30,24 @@ struct Add {
     project_path: String,
 }
 
+#[derive(clap::Args, Debug)]
+struct Remove {
+    #[clap(validator(|path| match std::path::Path::new(&path).is_dir() {
+        true => Ok(()),
+        false => Err("Project folder does not exist")
+    }))]
+    project_path: String,
+    /// Also remove the files in the embedded repository, not just the embedded repository entry.
+    #[clap(long, short, takes_value = false)]
+    remove_all_files: bool,
+}
+
 fn main() {
     let args = Args::parse();
     use Action::*;
     match args.action {
         Add(add_args) => add(&add_args),
+        Remove(remove_args) => remove(&remove_args),
         Init => init(),
         Fetch => fetch(),
         Status => status(),
@@ -60,7 +73,47 @@ fn add(add_args: &Add) {
     git_utils::embed::add_fild_to_embed_file(&add_args.project_path, "head", &embed_head);
 }
 
-fn init() {}
+fn remove(remove_args: &Remove) {
+    // todo: should be checking if folder/file exist before deleting ?
+
+    let _ = std::fs::remove_dir_all(format!("{}/.egit", &remove_args.project_path));
+    // todo: should this error be handled ?
+    // {
+    //     Ok(_)
+    //     | Err(Os {
+    //         kind: std::io::ErrorKind::NotFound,
+    //         ..
+    //     }) => {}
+    //     _ => panic!(""),
+    // }
+
+    if remove_args.remove_all_files {
+        let _ = std::fs::remove_dir_all(&remove_args.project_path);
+    }
+
+    // git_utils::embed::remove_fild_to_embed_file(&remove_args.project_path, "url");
+    // git_utils::embed::remove_fild_to_embed_file(&remove_args.project_path, "path");
+    // git_utils::embed::remove_fild_to_embed_file(&remove_args.project_path, "head");
+    git_utils::embed::remove_section_to_embed_file(&remove_args.project_path);
+}
+fn init() {
+    println!("{:?}", git_utils::embed::get_embeds());
+    for entry in git_utils::embed::get_embeds()
+        .iter()
+        .filter(|entry| !std::path::Path::new(&format!("{}/.egit", entry.path)).is_dir())
+    {
+        println!("Setting up: {}", entry.name.green());
+        let _ = std::fs::remove_dir_all("egit-tmp");
+        let _ = std::fs::create_dir_all("egit-tmp");
+        git_utils::clone(&entry.git_url, "egit-tmp/repo");
+        let _ = std::fs::rename("egit-tmp/repo/.git", "egit-tmp/repo/.git");
+        assert!(std::env::set_current_dir("egit-tmp/repo").is_ok());
+
+        // todo: implement egit
+
+        std::fs::remove_dir_all(std::env::current_dir().unwrap().parent().unwrap()).unwrap();
+    }
+}
 
 fn fetch() {}
 
