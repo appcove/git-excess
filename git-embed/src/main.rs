@@ -83,23 +83,16 @@ fn add(add_args: &Add) {
 }
 
 fn remove(remove_args: &Remove) {
-    // todo: should be checking if folder/file exist before deleting ?
-
-    let _ = std::fs::remove_dir_all(format!("{}/.egit", &remove_args.project_path));
-    // todo: should this error be handled ?
-    // {
-    //     Ok(_)
-    //     | Err(Os {
-    //         kind: std::io::ErrorKind::NotFound,
-    //         ..
-    //     }) => {}
-    //     _ => panic!(""),
-    // }
-
-    if remove_args.remove_all_files {
-        let _ = std::fs::remove_dir_all(&remove_args.project_path);
-    }
-    git_utils::embed::remove_section_to_embed_file(&remove_args.project_path);
+    let egit_path = format!("{}/.egit", &remove_args.project_path);
+    // if egit exist: folder is a subdirectory. Then remove embedentry from .gitembed
+    // Optional: remove folder itself
+    if std::path::Path::new(&egit_path).is_dir() {
+        let _ = std::fs::remove_dir_all(&egit_path);
+        if remove_args.remove_all_files {
+            let _ = std::fs::remove_dir_all(&remove_args.project_path);
+        }
+        git_utils::embed::remove_section_to_embed_file(&remove_args.project_path);
+    };
 }
 fn init() {
     println!("{:?}", git_utils::embed::get_embeds());
