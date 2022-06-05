@@ -90,3 +90,10 @@ pub fn clone(git_url: &str, path: &str) -> bool {
         .expect("Failed")
         .success()
 }
+
+pub fn is_installed(tool: &str) -> bool {
+    Command::new(&tool).status().is_ok()
+}
+pub fn not_installed(tool: &str) -> bool {
+    !is_installed(tool)
+}

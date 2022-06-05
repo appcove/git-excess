@@ -48,6 +48,14 @@ struct Remove {
 }
 
 fn main() {
+    if git_utils::not_installed("egit") {
+        eprintln!(
+            "{} egit is not installed, git-embed depends on it.",
+            "error:".red().bold()
+        );
+        std::process::exit(1);
+    }
+
     let args = Args::parse();
     use Action::*;
     match args.action {
@@ -63,6 +71,7 @@ fn main() {
 
 fn add(add_args: &Add) {
     if git_utils::clone(&add_args.git_url, &add_args.project_path) {
+        // todo: we need to make sure that path does not already exist, and that it is within the GIT_DIR
         git_utils::embed::add_fild_to_embed_file(&add_args.project_path, "url", &add_args.git_url);
         git_utils::embed::add_fild_to_embed_file(
             &add_args.project_path,
@@ -84,7 +93,7 @@ fn add(add_args: &Add) {
 
 fn remove(remove_args: &Remove) {
     let egit_path = format!("{}/.egit", &remove_args.project_path);
-    // if egit exist: folder is a subdirectory. Then remove embedentry from .gitembed
+    // if egit exist: folder is a subdirectory. Then remove embed entry from .gitembed
     // Optional: remove folder itself
     if std::path::Path::new(&egit_path).is_dir() {
         let _ = std::fs::remove_dir_all(&egit_path);
@@ -94,6 +103,7 @@ fn remove(remove_args: &Remove) {
         git_utils::embed::remove_section_to_embed_file(&remove_args.project_path);
     };
 }
+
 fn init() {
     println!("{:?}", git_utils::embed::get_embeds());
     for entry in git_utils::embed::get_embeds()

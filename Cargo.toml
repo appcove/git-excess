@@ -3,5 +3,6 @@ members = [
     "git-sdif",
     "git-srep",
     "git-embed",
+    "egit",
     "git_utils_shared" # library with shared git commands code
     ]
