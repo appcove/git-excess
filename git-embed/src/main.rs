@@ -94,10 +94,6 @@ fn remove(remove_args: &Remove) {
     if remove_args.remove_all_files {
         let _ = std::fs::remove_dir_all(&remove_args.project_path);
     }
-
-    // git_utils::embed::remove_fild_to_embed_file(&remove_args.project_path, "url");
-    // git_utils::embed::remove_fild_to_embed_file(&remove_args.project_path, "path");
-    // git_utils::embed::remove_fild_to_embed_file(&remove_args.project_path, "head");
     git_utils::embed::remove_section_to_embed_file(&remove_args.project_path);
 }
 fn init() {
