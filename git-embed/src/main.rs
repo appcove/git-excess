@@ -62,14 +62,13 @@ fn main() {
 }
 
 fn add(add_args: &Add) {
-    git_utils::embed::add_fild_to_embed_file(&add_args.project_path, "url", &add_args.git_url);
-    git_utils::embed::add_fild_to_embed_file(
-        &add_args.project_path,
-        "path",
-        &add_args.project_path,
-    );
-
     if git_utils::clone(&add_args.git_url, &add_args.project_path) {
+        git_utils::embed::add_fild_to_embed_file(&add_args.project_path, "url", &add_args.git_url);
+        git_utils::embed::add_fild_to_embed_file(
+            &add_args.project_path,
+            "path",
+            &add_args.project_path,
+        );
         std::fs::rename(
             &format!("{}/.git", &add_args.project_path),
             &format!("{}/.egit", &add_args.project_path),
@@ -78,6 +77,8 @@ fn add(add_args: &Add) {
 
         let embed_head = git_utils::embed::get_head_of_embed_project(&add_args.project_path);
         git_utils::embed::add_fild_to_embed_file(&add_args.project_path, "head", &embed_head);
+    } else {
+        println!("Failed to clone from: {}", &add_args.git_url);
     }
 }
 
