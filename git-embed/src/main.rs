@@ -13,11 +13,13 @@ struct Args {
 #[derive(clap::Subcommand, Debug)]
 enum Action {
     Init,
+    /// Add an embedded repo.
     Add(Add),
     Remove(Remove),
     Fetch,
     Status,
     Update,
+    /// Get a list of all embedded repo.
     List,
 }
 
