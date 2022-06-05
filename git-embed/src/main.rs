@@ -69,15 +69,16 @@ fn add(add_args: &Add) {
         &add_args.project_path,
     );
 
-    git_utils::clone(&add_args.git_url, &add_args.project_path);
-    std::fs::rename(
-        &format!("{}/.git", &add_args.project_path),
-        &format!("{}/.egit", &add_args.project_path),
-    )
-    .unwrap();
+    if git_utils::clone(&add_args.git_url, &add_args.project_path) {
+        std::fs::rename(
+            &format!("{}/.git", &add_args.project_path),
+            &format!("{}/.egit", &add_args.project_path),
+        )
+        .unwrap();
 
-    let embed_head = git_utils::embed::get_head_of_embed_project(&add_args.project_path);
-    git_utils::embed::add_fild_to_embed_file(&add_args.project_path, "head", &embed_head);
+        let embed_head = git_utils::embed::get_head_of_embed_project(&add_args.project_path);
+        git_utils::embed::add_fild_to_embed_file(&add_args.project_path, "head", &embed_head);
+    }
 }
 
 fn remove(remove_args: &Remove) {

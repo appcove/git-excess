@@ -83,10 +83,10 @@ pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<Stri
     Some(files)
 }
 
-pub fn clone(git_url: &str, path: &str) {
-    let _ = Command::new("git")
+pub fn clone(git_url: &str, path: &str) -> bool {
+    Command::new("git")
         .args(["clone", "--quiet", git_url, path])
         .status()
         .expect("Failed")
-        .success();
+        .success()
 }
