@@ -1,3 +1,4 @@
+use chrono::{DateTime, FixedOffset};
 use std::process::Command;
 pub mod egit;
 pub mod embed;
@@ -111,4 +112,28 @@ pub fn is_installed(tool: &str) -> bool {
 }
 pub fn not_installed(tool: &str) -> bool {
     !is_installed(tool)
+}
+
+pub fn get_last_commit_time() -> Option<DateTime<FixedOffset>> {
+    let stdout_raw = Command::new("git")
+        .args(["log", "-1", "--date=iso-strict", "--format=%cd", "HEAD"])
+        .output()
+        .expect("Failed ")
+        .stdout;
+    let stdout_str = String::from_utf8(stdout_raw).unwrap();
+    if stdout_str.is_empty() {
+        return None;
+    }
+    let date = chrono::DateTime::parse_from_rfc3339(&stdout_str.trim()).unwrap();
+
+    return Some(date);
+}
+
+pub fn get_head() -> String {
+    let stdout_raw = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .expect("Failed")
+        .stdout;
+    String::from_utf8(stdout_raw).unwrap().trim().to_string()
 }

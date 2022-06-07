@@ -4,6 +4,8 @@ use git_utils_shared as git_utils;
 use pathdiff::diff_paths;
 use std::path::PathBuf;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
@@ -57,7 +59,6 @@ fn main() {
 
         // check if any of head changing commands are in the passed args
         if !args.args.intersect(to_change_head_commands).is_empty() {
-            print!("Head has_changed");
             let parent_repo = git_utils::repo_top_level_dir().unwrap();
             // todo: modifie and use _> git_utils::embed::add_fild_to_embed_file();
             let _ = Command::new("git")
@@ -84,6 +85,7 @@ fn main() {
                 .success();
         }
     }
+    thread::sleep(Duration::from_millis(10));
 
     std::process::exit(cmd.code().unwrap())
 }

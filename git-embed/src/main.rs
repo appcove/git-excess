@@ -1,3 +1,5 @@
+use std::{borrow::Cow, thread, time::Duration};
+
 use clap::Parser;
 use colored::Colorize;
 use git_utils_shared as git_utils;
@@ -16,9 +18,10 @@ enum Action {
     /// Add an embedded repo.
     Add(Add),
     Remove(Remove),
-    Fetch,
+    // Fetch,
     Status,
     Update,
+    Tag,
     /// Get a list of all embedded repo.
     List,
 }
@@ -62,7 +65,8 @@ fn main() {
         Add(add_args) => add(&add_args),
         Remove(remove_args) => remove(&remove_args),
         Init => init(),
-        Fetch => fetch(),
+        // Fetch => fetch(),
+        Tag => tag(),
         Status => status(),
         Update => update(),
         List => list_embed(),
@@ -78,6 +82,7 @@ fn add(add_args: &Add) {
             "path",
             &add_args.project_path,
         );
+
         std::fs::rename(
             &format!("{}/.git", &add_args.project_path),
             &format!("{}/.egit", &add_args.project_path),
@@ -105,64 +110,116 @@ fn remove(remove_args: &Remove) {
 }
 
 fn init() {
-    println!("{:?}", git_utils::embed::get_embeds());
+    let tmp_folder = git_utils::repo_top_level_dir().unwrap().join("egit-tmp");
+    let parent_repo = git_utils::repo_top_level_dir().unwrap();
+
+    // dbg!(basename(&parent_repo.display().to_string(), '/'));
     for entry in git_utils::embed::get_embeds()
         .iter()
         .filter(|entry| !std::path::Path::new(&format!("{}/.egit", entry.path)).is_dir())
     {
         println!("Setting up: {}", entry.name.cyan());
-        let _ = std::fs::remove_dir_all("egit-tmp");
-        let _ = std::fs::create_dir_all("egit-tmp");
-        git_utils::clone(&entry.git_url, "egit-tmp/repo");
-        let _ = std::fs::rename("egit-tmp/repo/.git", "egit-tmp/repo/.git");
-        assert!(std::env::set_current_dir("egit-tmp/repo").is_ok());
+        let _ = std::fs::remove_dir_all(&tmp_folder);
+        let _ = std::fs::create_dir_all(&tmp_folder);
+        if git_utils::clone(
+            &entry.git_url,
+            &tmp_folder.join("repo").as_os_str().to_str().unwrap(),
+        ) {
+            let _ = std::fs::rename(tmp_folder.join("repo/.git"), tmp_folder.join("repo/.egit"));
 
-        // todo: implement egit
-        // subprocess.call(('egit', 'reset', '--mixed', Embed['head']))
-        // subprocess.call(('egit', 'checkout', '-b', PROJECT_DIRNAME))
-        // subprocess.call(('egit', 'branch', '-D', 'master'))
+            git_utils::egit::run_egit(
+                vec!["reset", "--mixed", &entry.head],
+                tmp_folder.join("repo"),
+            );
+            git_utils::egit::run_egit(
+                vec![
+                    "checkout",
+                    "-b",
+                    &utils::basename(&parent_repo.display().to_string(), '/'),
+                ],
+                tmp_folder.join("repo"),
+            );
 
-        std::fs::remove_dir_all(std::env::current_dir().unwrap().parent().unwrap()).unwrap();
+            git_utils::egit::run_egit(vec!["branch", "-D", "master"], tmp_folder.join("repo"));
+        }
+
+        thread::sleep(Duration::from_millis(10));
+        let _ = std::fs::remove_dir_all(&tmp_folder);
     }
 }
 
 fn fetch() {}
 
 fn status() {
-    let cwd = std::env::current_dir().unwrap();
     for entry in git_utils::embed::get_embeds()
         .iter()
         .filter(|entry| std::path::Path::new(&format!("{}/.egit", entry.path)).is_dir())
     {
-        assert!(std::env::set_current_dir(&entry.path).is_ok());
         println!("Status of: {}", entry.name.cyan());
-        println!("{:?}", std::env::current_dir().unwrap());
+        let embedded_repo_path = git_utils::repo_top_level_dir().unwrap().join(&entry.path);
 
-        // todo: implement egit
-        // subprocess.call(('egit', 'rev-parse', 'HEAD'))
-        // subprocess.call(('egit', 'status'))
-        assert!(std::env::set_current_dir(&cwd).is_ok());
+        git_utils::egit::run_egit(vec!["rev-parse", "HEAD"], &embedded_repo_path);
+        git_utils::egit::run_egit(vec!["status"], &embedded_repo_path);
     }
 }
+
+fn tag() {
+    let is_git_embed_modified =
+        git_utils::file::modified_files(&vec![".gitembed".to_string()]).is_some();
+
+    if is_git_embed_modified {
+        eprintln!(".gitembed is dirty.  Please commit this first.");
+        std::process::exit(1)
+    }
+
+    let parent_repo = git_utils::repo_top_level_dir()
+        .unwrap()
+        .display()
+        .to_string();
+    let project_name = utils::basename(&parent_repo, '/');
+    if let Some(date) = git_utils::get_last_commit_time() {
+        for entry in git_utils::embed::get_embeds() {
+            let tag_name = format!(
+                "{}.{}.{}",
+                &project_name,
+                date.format("%Y%m%d%H%M%S"),
+                git_utils::get_head()
+            );
+            println!("Tagging {} as {}", &project_name.cyan(), tag_name);
+            let entry_path = std::env::current_dir().unwrap().join(&entry.path);
+            git_utils::egit::run_egit(vec!["tag", &tag_name], &entry_path);
+            git_utils::egit::run_egit(vec!["push", "--tags"], &entry_path);
+        }
+    }
+}
+
 fn update() {
-    let cwd = std::env::current_dir().unwrap();
     for entry in git_utils::embed::get_embeds()
         .iter()
         .filter(|entry| std::path::Path::new(&format!("{}/.egit", entry.path)).is_dir())
     {
-        assert!(std::env::set_current_dir(&entry.path).is_ok());
         println!("Updating {} to {}", entry.name.cyan(), entry.head.yellow());
-        println!("{:?}", std::env::current_dir().unwrap());
 
-        // todo: implement egit
-        // subprocess.call(('egit', 'fetch', '--tags'))
-        // subprocess.call(('egit', 'reset', '--mixed', Embed['head']))
-        // subprocess.call(('egit', 'status'))
-        assert!(std::env::set_current_dir(&cwd).is_ok());
+        let embedded_path = git_utils::repo_top_level_dir().unwrap().join(&entry.path);
+        git_utils::egit::run_egit(vec!["fetch", "--tags"], &embedded_path);
+        git_utils::egit::run_egit(vec!["reset", "--mixed", &entry.head], &embedded_path);
+        git_utils::egit::run_egit(vec!["status"], &embedded_path);
     }
 }
 
 fn list_embed() {
     let table = Table::new(&git_utils::embed::get_embeds()).with(Style::modern());
     println!("{table}");
+}
+
+mod utils {
+    use std::borrow::Cow;
+
+    pub fn basename<'a>(path: &'a str, sep: char) -> Cow<'a, str> {
+        let mut pieces = path.rsplit(sep);
+        match pieces.next() {
+            Some(p) => p.into(),
+            None => path.into(),
+        }
+    }
 }
