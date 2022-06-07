@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::process::{Command, Stdio};
 pub mod embed;
 pub mod file;
 // fn run_command(command: &str, args: [&str]) -> () {}
@@ -89,6 +89,16 @@ pub fn clone(git_url: &str, path: &str) -> bool {
         .status()
         .expect("Failed")
         .success()
+}
+
+pub fn repo_top_level_dir() -> Result<std::path::PathBuf, std::io::Error> {
+    let raw_output = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()?
+        .stdout;
+
+    let stdout_str = String::from_utf8(raw_output).unwrap();
+    return Ok(std::path::PathBuf::from(stdout_str.trim()));
 }
 
 pub fn is_installed(tool: &str) -> bool {
