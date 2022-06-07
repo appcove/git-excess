@@ -1,4 +1,5 @@
-use std::process::{Command, Stdio};
+use std::process::Command;
+pub mod egit;
 pub mod embed;
 pub mod file;
 // fn run_command(command: &str, args: [&str]) -> () {}
@@ -102,7 +103,11 @@ pub fn repo_top_level_dir() -> Result<std::path::PathBuf, std::io::Error> {
 }
 
 pub fn is_installed(tool: &str) -> bool {
-    Command::new(&tool).status().is_ok()
+    Command::new(&tool)
+        .arg("-V")
+        .stdout(std::process::Stdio::null())
+        .status()
+        .is_ok()
 }
 pub fn not_installed(tool: &str) -> bool {
     !is_installed(tool)
