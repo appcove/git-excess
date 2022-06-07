@@ -1,5 +1,5 @@
 use chrono::{DateTime, FixedOffset};
-use std::process::Command;
+use std::process::{Command, Stdio};
 pub mod egit;
 pub mod embed;
 pub mod file;
@@ -88,8 +88,11 @@ pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<Stri
 pub fn clone(git_url: &str, path: &str) -> bool {
     Command::new("git")
         .args(["clone", "--quiet", git_url, path])
-        .status()
-        .expect("Failed")
+        .stdin(Stdio::inherit())
+        .spawn()
+        .unwrap()
+        .wait()
+        .unwrap()
         .success()
 }
 
