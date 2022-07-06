@@ -38,14 +38,14 @@ fn main() {
 
     cli_divider(&format!(
         "Commits unique to {}",
-        args.branch1.to_uppercase().bold().yellow()
+        args.branch1.bold().yellow()
     ));
 
     git_utils::show_uncommon_commit_from_other_branch(&args.branch1, &args.branch2);
 
     cli_divider(&format!(
         "Commits unique to {}",
-        args.branch2.to_uppercase().bold().yellow()
+        args.branch2.bold().yellow()
     ));
 
     git_utils::show_uncommon_commit_from_other_branch(&args.branch2, &args.branch1);
