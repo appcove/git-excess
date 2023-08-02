@@ -58,9 +58,10 @@ pub fn get_files_with_word(search: &str, paths: &Vec<String>) -> Option<Vec<Stri
             "grep",
             "--files-with-matches",
             "--name-only",
-            "-z",
-            "-E",
-            "-e",
+            "-I", // ignore binary files
+            "-z", // null character as delimiter
+            "-E", // extended regex
+            "-e", // pattern
             // todo replace ' and " in search
             &search,
             "--",
