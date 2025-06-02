@@ -3,7 +3,25 @@
 
 Extra (excessive?) git tooling
 
-  
+## Quick Installation
+
+To install git-sdif with bash completion:
+
+```bash
+./git-sdif/install.sh
+```
+
+This will:
+- Build and install the `git-sdif` binary to `~/.local/bin/`
+- Install bash completion to `~/.bash_completion.d/`
+- Provide setup instructions for your shell
+
+## Tools Included
+
+- **git-sdif**: Compare two git branches to see symmetric differences
+  - Usage: `git sdif <branch1> [branch2]` or `git-sdif <branch1> [branch2]`
+  - Includes tab completion for branch names
+  - Package location: `git-sdif/` (includes completion script and installation)
 
 # Git_utils from AppCove
 
