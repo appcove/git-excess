@@ -36,14 +36,20 @@ fn main() {
         }
     }
 
-    let cmd = Command::new("git")
-        .args(&args.args)
-        .env("GIT_DIR", &egit_path.unwrap())
-        .env("GIT_WORK_TREE", &embedded_repo.unwrap())
-        .status()
-        .expect("Failed git command inside egit");
+    let mut cmd = Command::new("git");
+        cmd.env("GIT_DIR", &egit_path.clone().unwrap());
+        cmd.env("GIT_WORK_TREE", &embedded_repo.unwrap());
+        cmd.arg("-c").arg(format!(
+            "core.excludesFile={}",
+            &embedded_repo.unwrap().join(".egitignore").to_string_lossy()
+        ));
+        cmd.args(&args.args);
 
-    if cmd.success() {
+    eprintln!("{:?}", cmd);
+
+    let status = cmd.status().unwrap();
+
+    if status.success() {
         let head =
             git_utils::embed::get_head_of_embed_project(&embedded_repo.unwrap().to_string_lossy());
 
@@ -87,5 +93,5 @@ fn main() {
     }
     thread::sleep(Duration::from_millis(10));
 
-    std::process::exit(cmd.code().unwrap())
+    std::process::exit(status.code().unwrap())
 }
